@@ -7,6 +7,7 @@ pip install git+https://github.com/JakobLC/jlc.git
 and use a function, e.g. 
 
 ```
-montage(np.random.rand(2,3,4,5,3),reshape_size=(40,50))
+import jlc
+jlc.functions.montage(np.random.rand(2,3,4,5,3),reshape_size=(40,50))
 ```
 
