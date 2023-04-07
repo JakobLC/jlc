@@ -216,3 +216,44 @@ def montage(arr,
     if imshow:
         plt.imshow(im_cat)
     return im_cat
+
+def cat(arrays,axis=0,new_dim=False):
+    """
+    Very unsafe concatenation of arrays.
+    Inputs:
+        arrays : list or tuple of np.ndarrays
+            Arrays to concatenate. If the arrays do not have the same size over
+            any of the non concatenation axis dimensions, then the arrays will
+            be tiled to fit the maximum size over the dimension. e.g. if we 
+            concatenate a np.size([1,5,2]) and np.size([3,5,4]) over axis=0
+            then the output will have size np.size([3+1,5,4]) and the first
+            array will be repeated twice over dimension 2.
+        axis : int, optional
+            Axis over which the main concatenation should be done over. The 
+            default is 0.
+        new_dim : bool, optional
+            Should a new axis be inserted over the concatenation dim? The 
+            default is False.
+    Outputs:
+        cat_arrays : np.ndarray
+            The concatenated array
+    """
+    n_dims = np.array([len(np.array(array).shape) for array in arrays]).max()
+    if n_dims<axis:
+        n_dims = axis
+    cat_arrays = []
+    for array in arrays:
+        if np.size(array)>1:
+            tmp = np.array(array).copy()
+            tmp = np.expand_dims(tmp,axis=tuple(range(len(tmp.shape),n_dims)))
+            cat_arrays.append(tmp)
+    if new_dim or len(cat_arrays[0].shape)<=axis:
+        for i in range(len(cat_arrays)):
+            cat_arrays[i] = np.expand_dims(cat_arrays[i],axis=axis)
+    SHAPE = np.array([list(array.shape) for array in cat_arrays]).max(0)
+    for i in range(len(cat_arrays)):
+        reps = SHAPE//(cat_arrays[i].shape)
+        reps[axis] = 1
+        cat_arrays[i] = np.tile(cat_arrays[i],reps)
+    cat_arrays = np.concatenate(cat_arrays,axis=axis)
+    return cat_arrays
