@@ -74,6 +74,8 @@ def montage(arr,
         if len(arr.shape)==4:
             arr = [arr[i] for i in range(arr.shape[0])]
         elif len(arr.shape)==5:
+            n1 = arr.shape[0]
+            n2 = arr.shape[1]
             arr = [[arr[i,j] for j in range(arr.shape[1])]
                    for i in range(arr.shape[0])]
         else:
@@ -93,7 +95,7 @@ def montage(arr,
             assert n_col*n_row>=len(arr), "number of columns/rows too small for number of images"
             n1 = n_row
             n2 = n_col
-       
+        
         if rows_first:
             arr2 = []
             for i in range(n1):
@@ -107,18 +109,22 @@ def montage(arr,
             arr2 = [[] for _ in range(n1)]
             for j in range(n2):
                 for i in range(n1):
-                    ii = i+j*n2
+                    ii = i+j*n1
                     if ii<len(arr):
                         #print((i+1)*n1+j-1)
                         arr2[i].append(arr[ii])
         arr = arr2
-        
-    n1 = len(arr)
-    n2_list = [len(arr[i]) for i in range(n1)]
     if n_row is None:
+        n1 = len(arr)
+    else:
+        n1 = n_row
+        
+    n2_list = [len(arr[i]) for i in range(n1)]
+    if n_col is None:
         n2 = max(n2_list)
     else:
-        n2 = n_row
+        n2 = n_col
+        
     idx = []
     for i in range(n1):
         idx.extend([[i,j] for j in range(n2_list[i])])
@@ -163,7 +169,10 @@ def montage(arr,
     p2 = padding[1]
     G11 = G1+p1*2
     G22 = G2+p2*2
+    
+    
     im_cat_size = [G11*n1,G22*n2]
+
     im_cat_size.append(channels)
     im_cat = np.zeros(im_cat_size)
     if channels==4:
@@ -193,15 +202,16 @@ def montage(arr,
             im = np.pad(im,((p1,p1),(p2,p2)),constant_values=padding_color)
         else:
             raise ValueError("images in arr must have 2 or 3 dims")
-        
+            
         d = (G1-d1)/2
         idx_d1 = slice(int(np.floor(d))+i*G11,G11-int(np.ceil(d))+i*G11)
         d = (G2-d2)/2
         idx_d2 = slice(int(np.floor(d))+j*G22,G22-int(np.ceil(d))+j*G22)
-        im_c = 1
+        
         if len(im.shape)>2:
             im_c = im.shape[2]
         else:
+            im_c = 1
             im = im[:,:,None]
             
         if im_c<channels:
@@ -220,6 +230,7 @@ def montage(arr,
 def cat(arrays,axis=0,new_dim=False):
     """
     Very unsafe concatenation of arrays.
+    ------------------------------------------
     Inputs:
         arrays : list or tuple of np.ndarrays
             Arrays to concatenate. If the arrays do not have the same size over
@@ -259,6 +270,19 @@ def cat(arrays,axis=0,new_dim=False):
     return cat_arrays
 
 def reverse_dict(dictionary,check_for_duplicates=False):
+    """
+    Function to reverse a dictionary.
+    ---------------------------------
+    Inputs:
+        dictionary : dict
+            Dictionary to be inverted such that keys and values are swapped.
+        check_for_duplicates : bool, optional
+            If True then the function throws an error if there are duplicates 
+            in the values of the dict. The default is False.
+    Outputs:
+        inv_dict : dict
+            The inverted dictionary.
+    """
     inv_dict = {}
     values = []
     for k,v in dictionary.items():
