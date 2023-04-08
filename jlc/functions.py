@@ -257,3 +257,16 @@ def cat(arrays,axis=0,new_dim=False):
         cat_arrays[i] = np.tile(cat_arrays[i],reps)
     cat_arrays = np.concatenate(cat_arrays,axis=axis)
     return cat_arrays
+
+def reverse_dict(dictionary,check_for_duplicates=False):
+    inv_dict = {}
+    values = []
+    for k,v in dictionary.items():
+        if check_for_duplicates:
+            assert v not in values,"Found duplicate value in dict, cannot invert"
+            values.append(v)
+        inv_dict[v] = k
+    return inv_dict
+    
+    
+    
