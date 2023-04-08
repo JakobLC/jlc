@@ -6,6 +6,6 @@ setup(
     author='Jakob Loenborg Christensen',
     author_email='jakoblc@live.dk',
     description="Useful functions.",
-    version="1.1",
+    version="1.2",
     packages=find_packages(),
 )
