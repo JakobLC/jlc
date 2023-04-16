@@ -8,4 +8,8 @@ setup(
     description="Useful functions.",
     version="1.2",
     packages=find_packages(),
+    install_requires=["tifffile",
+                      "numpy",
+                      "scipy",
+                      "matplotlib"]
 )
