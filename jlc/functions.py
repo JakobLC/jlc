@@ -1,7 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage as nd
-#from PIL import Image
+from PIL import Image
+import PIL
+import torch
+import cv2
+import copy 
 
 def montage(arr,
             maintain_aspect=True,
@@ -103,7 +107,6 @@ def montage(arr,
                 for j in range(n2):
                     ii = n2*i+j
                     if ii<len(arr):
-                        #print((i+1)*n1+j-1)
                         arr2[i].append(arr[ii])
         else:
             arr2 = [[] for _ in range(n1)]
@@ -111,7 +114,6 @@ def montage(arr,
                 for i in range(n1):
                     ii = i+j*n1
                     if ii<len(arr):
-                        #print((i+1)*n1+j-1)
                         arr2[i].append(arr[ii])
         arr = arr2
     if n_row is None:
@@ -293,6 +295,18 @@ def reverse_dict(dictionary,check_for_duplicates=False):
     return inv_dict
     
 def num_of_params(model,print_numbers=True):
+    """
+    Prints and returns the number of paramters for a pytorch model.
+    Args:
+        model (torch.nn.module): Pytorch model which you want to extract the number of 
+        trainable parameters from.
+        print_numbers (bool, optional): Prints the number of parameters. Defaults to True.
+
+    Returns:
+        n_trainable (int): Number of trainable parameters.
+        n_not_trainable (int): Number of not trainable parameters.
+        n_total (int): Total parameters.
+    """
     n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     n_not_trainable = sum(p.numel() for p in model.parameters() if not p.requires_grad)
     n_total = n_trainable+n_not_trainable
@@ -303,3 +317,181 @@ def num_of_params(model,print_numbers=True):
             +"\n"+str(n_total)+" total parameters")
         print(s)
     return n_trainable,n_not_trainable,n_total
+
+
+def standardize_image_like(im,n_output_channels=3,return_type="np",dtype="float64"):
+    """
+    Takes torch,np or pil image objects and makes it have 
+    standardized dtype, order of channels, length of dims and return type
+
+    Args:
+        im (_type_): _description_
+        n_output_channels (int, optional): _description_. Defaults to 3.
+        return_type (str, optional): _description_. Defaults to "np".
+
+    Returns:
+        _type_: _description_
+    """
+    im = copy.copy(im)
+    assert return_type.lower() in ["np","torch","pil"]
+    assert n_output_channels in [0,1,3,4]
+    pil_types = [PIL.Image.Image,
+                 PIL.PngImagePlugin.PngImageFile,
+                 PIL.JpegImagePlugin.JpegImageFile]
+    
+    if type(im) in pil_types:
+        im = np.array(im)
+    elif torch.is_tensor(im):
+        im = im.detach().cpu().numpy()
+    else:
+        assert isinstance(im,np.ndarray)
+    
+    if len(im.shape)>3:
+        im = im.squeeze()
+        assert len(im.shape)<=3, "images must have at most 3 non-singleton dimensions"
+
+    im = np.atleast_3d(im)
+
+    if im.shape[2] in [1,3,4]:
+        1
+    elif im.shape[0] in [1,3,4]:
+        im = np.transpose(im,axes=[1,2,0]) 
+    else:
+        assert im.shape[1] in [1,3,4], "The image has to have 1,3 or 4 color channels in one of the 3 dimensions. im.shape="+str(im.shape)
+        im = np.transpose(im,axes=[0,2,1])
+
+    uint8_out = (dtype=="uint8" or dtype==np.dtype("uint8"))
+
+    if im.dtype==np.dtype('uint8') and im.max()>1 and not uint8_out:
+        im = im.astype(dtype)/255
+    else:
+        im = im.astype(dtype)
+
+
+    if im.min()<0:
+        im = im-(im.min())
+    if im.max()>=1:
+        im = im/(im.max())
+
+    if n_output_channels==0:
+        im = im.mean(2)
+    elif n_output_channels==1:
+        im = im.mean(2,keepdims=True)
+    elif n_output_channels==3:
+        if im.shape[2]==1:
+            im = np.tile(im,(1,1,3))
+        elif im.shape[2]==4:
+            im = im[:,:,:3]
+        else:
+            assert im.shape[2]==3
+    elif n_output_channels==4:
+        if im.shape[2]==1:
+            im = np.tile(im,(1,1,3))
+            im = np.concatenate((im,np.ones((im.shape[0],im.shape[1],1))),axis=2)
+        elif im.shape[2]==3:
+            im = np.concatenate((im,np.ones((im.shape[0],im.shape[1],1))),axis=2)
+        else:
+            assert im.shape[2]==4
+    
+    if return_type=="np":
+        pass
+    elif return_type=="torch":
+        im = torch.from_numpy(im)
+    elif return_type=="pil":
+        im = PIL.Image.fromarray(im.astype("uint8"))
+    return im
+
+
+def collage(arr,
+            imshow=True,
+            return_image=False,
+            align_rows=True,
+            n_alignment=None,
+            alignment_size=None,
+            deterministic_order=False,
+            exact_fit_downsize=True,
+            border_color=[0,0,0]):
+    if isinstance(arr,np.ndarray) or torch.is_tensor(arr):
+        if len(arr.shape)<=4:
+            arr = [arr[i] for i in range(arr.shape[0])]
+        else:
+            raise ValueError("Cannot input np.ndarray with more than 4 dims")
+    else:
+        assert isinstance(arr,list), "arr must be list, np.ndarray or torch.tensor"
+        for i in range(len(arr)):
+            arr[i] = standardize_image_like(arr[i])
+
+    align_dim = 0 if align_rows else 1
+    off_dim = 1 if align_rows else 0
+    n = len(arr)
+
+    if n_alignment is None:
+        n_alignment = int(np.floor(np.sqrt(n)))
+
+    if not deterministic_order:
+        order = np.random.permutation(n)
+        arr = [arr[i] for i in order]
+    
+    shapes = np.array([a.shape for a in arr])[:,:2]
+    
+    shapes_resized = shapes.copy()
+        
+    shapes_resized = shapes_resized/(shapes_resized[:,align_dim,None])
+    if alignment_size is None:    
+        alignment_size = shapes[:,align_dim].min()
+        if np.quantile(shapes[:,align_dim],0.5)*0.5>alignment_size:
+            alignment_size = int(np.ceil(np.quantile(shapes[:,align_dim],0.5)))
+
+    shapes_resized = np.round(alignment_size*shapes_resized).astype(int)
+
+    pixels_per_align = [0 for _ in range(n_alignment)]
+    idx_per_align = [[] for _ in range(n_alignment)]
+    for idx in range(n):
+        bin_sample = np.flatnonzero([min(pixels_per_align)==p for p in pixels_per_align])
+        if deterministic_order:
+            i = bin_sample[0]
+        else:
+            i = np.random.choice(bin_sample)
+        idx_per_align[i].append(idx)
+        pixels_per_align[i] += shapes_resized[idx,off_dim]
+
+    alignment_im0 = np.zeros((alignment_size,0,3) if align_rows else (0,alignment_size,3))
+
+    alignment_images = []
+    for i in range(n_alignment):
+        alignment_im = alignment_im0.copy()
+        for image_i in idx_per_align[i]:
+            im = arr[image_i]
+            resize_shape = (shapes_resized[image_i,1],shapes_resized[image_i,0])
+            im = cv2.resize(im, resize_shape, interpolation=cv2.INTER_AREA)
+            alignment_im = np.concatenate((alignment_im,im),axis=off_dim)
+        alignment_images.append(alignment_im)
+
+    if exact_fit_downsize:
+        collage_im = np.zeros((0,min(pixels_per_align),3) if align_rows else (min(pixels_per_align),0,3))
+        for i in range(n_alignment):
+            reshape_size = [int(np.round(alignment_size*min(pixels_per_align)/pixels_per_align[i])),
+                            min(pixels_per_align)]
+            if align_rows:
+                reshape_size = [reshape_size[1],reshape_size[0]]
+
+            im = cv2.resize(alignment_images[i], reshape_size, interpolation=cv2.INTER_AREA)
+            collage_im = np.concatenate((collage_im,im),axis=align_dim)
+    else:
+        collage_im = np.zeros((0,max(pixels_per_align),3) if align_rows else (max(pixels_per_align),0,3))
+        border_color = np.array(border_color).flatten().reshape(1,1,3)
+        for i in range(n_alignment):
+            if align_rows:
+                im_border_size = [alignment_size,max(pixels_per_align)-pixels_per_align[i],3]
+            else:
+                im_border_size = [alignment_size,max(pixels_per_align)-pixels_per_align[i],3]
+            im_border = border_color*np.ones(im_border_size)
+            im = np.concatenate((alignment_images[i],im_border),axis=off_dim)
+            collage_im = np.concatenate((collage_im,im),axis=align_dim)
+    collage_im[collage_im>1] = 1
+    if imshow:
+        plt.figure()
+        plt.imshow(collage_im)
+        plt.show()
+    if return_image:
+        return collage_im

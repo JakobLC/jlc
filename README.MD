@@ -8,6 +8,6 @@ and use a function, e.g.
 
 ```
 import jlc
-jlc.functions.montage(np.random.rand(2,3,4,5,3),reshape_size=(40,50))
+jlc.montage(np.random.rand(2,3,4,5,3),reshape_size=(40,50))
 ```
 
