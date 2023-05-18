@@ -292,5 +292,14 @@ def reverse_dict(dictionary,check_for_duplicates=False):
         inv_dict[v] = k
     return inv_dict
     
-    
-    
+def num_of_params(model,print_numbers=True):
+    n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    n_not_trainable = sum(p.numel() for p in model.parameters() if not p.requires_grad)
+    n_total = n_trainable+n_not_trainable
+    if print_numbers:
+        s = ("The model has:"
+            +"\n"+str(n_trainable)+" trainable parameters"
+            +"\n"+str(n_not_trainable)+" untrainable parameters"
+            +"\n"+str(n_total)+" total parameters")
+        print(s)
+    return n_trainable,n_not_trainable,n_total
