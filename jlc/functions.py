@@ -222,7 +222,7 @@ def montage(arr,
                     im = im[:,:,0]
                 im = np.stack([im]*3,axis=2)
             if channels==4 and im_c<4:
-                im = np.concatenate([im]+[np.ones((d1,d2,1))],axis=2)
+                im = np.concatenate([im]+[np.ones((im.shape[0],im.shape[1],1))],axis=2)
         im_cat[idx_d1,idx_d2,:] = im
     im_cat = np.clip(im_cat,0,1)
     if imshow:
