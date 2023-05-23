@@ -16,7 +16,8 @@ def montage(arr,
             n_row=None,
             padding=0,
             padding_color=0,
-            rows_first=True):
+            rows_first=True,
+            figsize_per_pixel=1/100):
     """
     Function that displays and returns an montage of images from a list or 
     list of lists of images.
@@ -226,7 +227,9 @@ def montage(arr,
         im_cat[idx_d1,idx_d2,:] = im
     im_cat = np.clip(im_cat,0,1)
     if imshow:
-        plt.imshow(im_cat)
+        plt.figure(figsize=(figsize_per_pixel*im_cat.shape[1],figsize_per_pixel*im_cat.shape[0]))
+        plt.imshow(im_cat,cmap="gray")
+        plt.show()
     return im_cat
 
 def cat(arrays,axis=0,new_dim=False):
@@ -410,7 +413,8 @@ def collage(arr,
             alignment_size=None,
             deterministic_order=False,
             exact_fit_downsize=True,
-            border_color=[0,0,0]):
+            border_color=[0,0,0],
+            figsize_per_pixel=1/100):
     if isinstance(arr,np.ndarray) or torch.is_tensor(arr):
         if len(arr.shape)<=4:
             arr = [arr[i] for i in range(arr.shape[0])]
@@ -490,8 +494,8 @@ def collage(arr,
             collage_im = np.concatenate((collage_im,im),axis=align_dim)
     collage_im[collage_im>1] = 1
     if imshow:
-        plt.figure()
-        plt.imshow(collage_im)
+        plt.figure(figsize=(figsize_per_pixel*collage_im.shape[1],figsize_per_pixel*collage_im.shape[0]))
+        plt.imshow(collage_im,cmap="gray")
         plt.show()
     if return_image:
         return collage_im
