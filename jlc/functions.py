@@ -461,7 +461,6 @@ def collage(arr,
         if n%n_alignment==0:
             num_per_align = n//n_alignment
             idx_per_align = [[j+i*num_per_align for j in range(num_per_align)] for i in range(n_alignment)]
-            print(idx_per_align)
             pixels_per_align = [sum([shapes_resized[idx,off_dim] for idx in idx_list]) for idx_list in idx_per_align]
         else:
             val_below = np.floor(n/n_alignment).astype(int)
