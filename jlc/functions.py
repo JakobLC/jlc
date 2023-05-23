@@ -1,11 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage as nd
-from PIL import Image
 import PIL
 import torch
 import cv2
 import copy 
+import random
 
 def montage(arr,
             maintain_aspect=True,
@@ -411,7 +411,7 @@ def collage(arr,
             align_rows=True,
             n_alignment=None,
             alignment_size=None,
-            deterministic_order=False,
+            random_order=True,
             exact_fit_downsize=True,
             border_color=[0,0,0],
             figsize_per_pixel=1/100):
@@ -432,7 +432,7 @@ def collage(arr,
     if n_alignment is None:
         n_alignment = int(np.floor(np.sqrt(n)))
 
-    if not deterministic_order:
+    if random_order:
         order = np.random.permutation(n)
         arr = [arr[i] for i in order]
     
@@ -448,17 +448,42 @@ def collage(arr,
 
     shapes_resized = np.round(alignment_size*shapes_resized).astype(int)
 
-    pixels_per_align = [0 for _ in range(n_alignment)]
-    idx_per_align = [[] for _ in range(n_alignment)]
-    for idx in range(n):
-        bin_sample = np.flatnonzero([min(pixels_per_align)==p for p in pixels_per_align])
-        if deterministic_order:
-            i = bin_sample[0]
-        else:
+    
+    if random_order:
+        pixels_per_align = [0 for _ in range(n_alignment)]
+        idx_per_align = [[] for _ in range(n_alignment)]
+        for idx in range(n):
+            bin_sample = np.flatnonzero([min(pixels_per_align)==p for p in pixels_per_align])
             i = np.random.choice(bin_sample)
-        idx_per_align[i].append(idx)
-        pixels_per_align[i] += shapes_resized[idx,off_dim]
-
+            idx_per_align[i].append(idx)
+            pixels_per_align[i] += shapes_resized[idx,off_dim]
+    else:
+        if n%n_alignment==0:
+            num_per_align = n//n_alignment
+            idx_per_align = [[j+i*num_per_align for j in range(num_per_align)] for i in range(n_alignment)]
+            print(idx_per_align)
+            pixels_per_align = [sum([shapes_resized[idx,off_dim] for idx in idx_list]) for idx_list in idx_per_align]
+        else:
+            val_below = np.floor(n/n_alignment).astype(int)
+            val_above = val_below+1
+            num_above = (n%n_alignment)
+            num_below = n_alignment-num_above
+            num_per_bin = [val_below for _ in range(num_below)]+[val_above for _ in range(num_above)]
+            best_cost = float("inf")
+            n_tries = min(10,2**n_alignment)
+            for _ in range(n_tries):
+                random.shuffle(num_per_bin)
+                idx_per_align_tmp = []
+                k = 0
+                for npb in num_per_bin:
+                    idx_per_align_tmp.append(list(range(k,k+npb)))
+                    k += npb
+                pixels_per_align_tmp = [sum([shapes_resized[idx,off_dim] for idx in idx_list]) for idx_list in idx_per_align_tmp]
+                cost = max(pixels_per_align_tmp)-min(pixels_per_align_tmp)
+                if cost<best_cost:
+                    best_cost = copy.copy(cost)
+                    pixels_per_align = copy.copy(pixels_per_align_tmp)
+                    idx_per_align = copy.copy(idx_per_align_tmp)
     alignment_im0 = np.zeros((alignment_size,0,3) if align_rows else (0,alignment_size,3))
 
     alignment_images = []
