@@ -455,10 +455,10 @@ def collage(arr,
             arr = [arr[i] for i in range(arr.shape[0])]
         else:
             raise ValueError("Cannot input np.ndarray with more than 4 dims")
-    else:
-        assert isinstance(arr,list), "arr must be list, np.ndarray or torch.tensor"
-        for i in range(len(arr)):
-            arr[i] = standardize_image_like(arr[i])
+    
+    assert isinstance(arr,list), "arr must be list, np.ndarray or torch.tensor"
+    for i in range(len(arr)):
+        arr[i] = standardize_image_like(arr[i])
 
     align_dim = 0 if align_rows else 1
     off_dim = 1 if align_rows else 0
