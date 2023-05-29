@@ -339,8 +339,7 @@ def standardize_image_like(im,n_output_channels=3,return_type="np",dtype="float6
     assert return_type.lower() in ["np","torch","pil"]
     assert n_output_channels in [0,1,3,4]
     pil_types = [PIL.Image.Image,
-                 PIL.PngImagePlugin.PngImageFile,
-                 PIL.JpegImagePlugin.JpegImageFile]
+                 PIL.PngImagePlugin.PngImageFile]
     
     if type(im) in pil_types:
         im = np.array(im)
@@ -415,6 +414,42 @@ def collage(arr,
             exact_fit_downsize=True,
             border_color=[0,0,0],
             figsize_per_pixel=1/100):
+    """A function to make a nice square image out of a list of images.
+
+    Args:
+        arr (list): list of images with len(arr)=n (torch,numpy or PIL) that 
+            should be turned into a collage. Can also be a 4D torch tensor or
+            numpy array were the 0th axis is has dim n.
+        imshow (bool, optional): should the image be shown (with plt.imshow). 
+            Defaults to True.
+        return_image (bool, optional): Should the function return 
+            the collage image. Defaults to False.
+        align_rows (bool, optional): images are aligned in either the row 
+            direction (if True) or the column direction (if False). Defaults 
+            to True.
+        n_alignment (int, optional): How many rows or columns should the 
+            images be alignet into. Defaults to n_align=int(np.floor(np.sqrt(len(arr)))).
+        alignment_size (int, optional): How many pixels should constitute each 
+            aligned row of images have in the opposite direction than the alignment 
+            direction. Defaults to either the minimum of the images, or the median
+            if the minimum is significantly different from the minimum.
+        random_order (bool, optional): Should images be placed randomly in the
+            collage (if True) or in a alignment-by-alignment fashion (if False). 
+            Defaults to True.
+        exact_fit_downsize (bool, optional): Should each alignment row/column of 
+            images be resized such that there is no bordering pixels without images. 
+            Defaults to True.
+        border_color (list, optional): What RGB value should pixels assume where 
+            there is no images. Only relevant if exact_fit_downsize=False. Defaults 
+            to [0,0,0].
+        figsize_per_pixel (_type_, optional): How large should the figure be if 
+            imshow=True, measured in matplotlib.pyplot figsizes per pixels in the 
+            final collage image. Defaults to 1/100.
+
+    Returns:
+        collage_im np.array with size (x,y,3): The original n images from the arr
+            variable as the collage image. Only returned if return_image=True.
+    """
     if isinstance(arr,np.ndarray) or torch.is_tensor(arr):
         if len(arr.shape)<=4:
             arr = [arr[i] for i in range(arr.shape[0])]
