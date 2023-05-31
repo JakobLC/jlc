@@ -10,6 +10,8 @@ import random
 def montage(arr,
             maintain_aspect=True,
             reshape=True,
+            text=None,
+            return_im=False,
             imshow=True,
             reshape_size=None,
             n_col=None,
@@ -17,7 +19,8 @@ def montage(arr,
             padding=0,
             padding_color=0,
             rows_first=True,
-            figsize_per_pixel=1/100):
+            figsize_per_pixel=1/100,
+            text_color=[0,0,0]):
     """
     Function that displays and returns an montage of images from a list or 
     list of lists of images.
@@ -229,8 +232,17 @@ def montage(arr,
     if imshow:
         plt.figure(figsize=(figsize_per_pixel*im_cat.shape[1],figsize_per_pixel*im_cat.shape[0]))
         plt.imshow(im_cat,cmap="gray")
+        if text is not None:
+            max_text_len = max([max(list(map(len,str(t).split("\n")))) for t in text])
+            text_size = 42.85714*G22/max_text_len*figsize_per_pixel #42.85714=6*16/224/0.01
+            for i,j,t in zip(I,J,text):
+                dt1 = p1+G11*i
+                dt2 = p2+G22*j
+                plt.text(x=dt2,y=dt1,s=str(t),color=text_color,va="top",ha="left",size=text_size)
         plt.show()
-    return im_cat
+
+    if return_im:
+        return im_cat
 
 def cat(arrays,axis=0,new_dim=False):
     """
