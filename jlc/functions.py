@@ -570,3 +570,45 @@ def collage(arr,
         plt.show()
     if return_image:
         return collage_im
+    
+def earth_mover_distance(vec1, vec2, input_is_raw_data=False):
+    """Computes the earth mover distance (EM) between two vectors 
+    each representing a discrete distribution. 
+
+    Args:
+        vec1 (list): The first vector. E.g lets say the distribution is 
+            number of kids in families and the first vector represents 
+            2 families, each with one kid. Then the vector should be
+            vec1 = [2,0,0] (limit goes up to 3 kids in this case).
+        vec2 (list): The second vector. E.g lets say the distribution is 
+            number of kids in families and the second vector represents 
+            2 families, with 2 and 3 kids. Then the vector should be
+            vec1 = [0,1,1].
+        input_is_raw_data (bool,Optional): If the input is raw data from 
+            the discrete distribution. e.g. the data [0,1,1,2] would be 
+            reconstructed into [1,2,1]. If the input is raw dete then
+            the distribution need not be discrete. Defaults to False.
+    Returns:
+        dist: The measured earth mover distance.
+    Example:
+        vec1 = [2,0,0]
+        vec2 = [0,1,1]
+        distance = earth_mover_distance(vec1, vec2) 
+        print(distance) #3
+    """
+    assert len(vec1) == len(vec2), "Input vectors must have the same length"
+    if input_is_raw_data:
+        idx1 = sorted(vec1)
+        idx2 = sorted(vec2)
+    else:
+        assert sum(vec1) == sum(vec2), "Input vectors must have the same sum"
+        idx1 = []
+        idx2 = []
+        for i in range(len(vec1)):
+            idx1.extend([i for _ in range(vec1[i])])
+            idx2.extend([i for _ in range(vec2[i])])
+    dist = 0
+    for i1,i2 in zip(idx1,idx2):
+        dist += abs(i1-i2)
+    dist = dist/len(idx1)
+    return dist
