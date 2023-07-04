@@ -20,7 +20,8 @@ def montage(arr,
             padding_color=0,
             rows_first=True,
             figsize_per_pixel=1/100,
-            text_color=[0,0,0]):
+            text_color=[0,0,0],
+            text_size=10):
     """
     Function that displays and returns an montage of images from a list or 
     list of lists of images.
@@ -67,6 +68,14 @@ def montage(arr,
         If True and a single list is given as arr then the images will first
         be filled into row 0 and then row 1, etc. Otherwise columns will be
         filled first. The default is True.
+    figsize_per_pixel : float
+        How large a figure to render if imshow=True, in relation to pixels.
+        Defaults to 1/100.
+    text_color : matplotlib color-like
+        color of text to write on top of images. Defaults to red ([1,0,0]).
+    text_size : float or int
+        Size of text to write on top of images. Defaults to 10.
+
     Returns
     -------
     im_cat : np.array
@@ -233,8 +242,8 @@ def montage(arr,
         plt.figure(figsize=(figsize_per_pixel*im_cat.shape[1],figsize_per_pixel*im_cat.shape[0]))
         plt.imshow(im_cat,cmap="gray")
         if text is not None:
-            max_text_len = max([max(list(map(len,str(t).split("\n")))) for t in text])
-            text_size = 42.85714*G22/max_text_len*figsize_per_pixel #42.85714=6*16/224/0.01
+            #max_text_len = max([max(list(map(len,str(t).split("\n")))) for t in text])
+            #text_size = 10#*G22/max_text_len*figsize_per_pixel #42.85714=6*16/224/0.01
             for i,j,t in zip(I,J,text):
                 dt1 = p1+G11*i
                 dt2 = p2+G22*j
