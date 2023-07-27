@@ -21,7 +21,8 @@ def montage(arr,
             rows_first=True,
             figsize_per_pixel=1/100,
             text_color=[0,0,0],
-            text_size=10):
+            text_size=10,
+            create_figure=True):
     """
     Function that displays and returns an montage of images from a list or 
     list of lists of images.
@@ -75,7 +76,8 @@ def montage(arr,
         color of text to write on top of images. Defaults to red ([1,0,0]).
     text_size : float or int
         Size of text to write on top of images. Defaults to 10.
-
+    create_figure : bool
+        Should plt.figure() be called when imshow is True? Defaults to True.
     Returns
     -------
     im_cat : np.array
@@ -239,7 +241,8 @@ def montage(arr,
         im_cat[idx_d1,idx_d2,:] = im
     im_cat = np.clip(im_cat,0,1)
     if imshow:
-        plt.figure(figsize=(figsize_per_pixel*im_cat.shape[1],figsize_per_pixel*im_cat.shape[0]))
+        if create_figure:
+            plt.figure(figsize=(figsize_per_pixel*im_cat.shape[1],figsize_per_pixel*im_cat.shape[0]))
         plt.imshow(im_cat,cmap="gray")
         if text is not None:
             #max_text_len = max([max(list(map(len,str(t).split("\n")))) for t in text])
