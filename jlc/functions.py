@@ -239,11 +239,17 @@ def montage(arr,
             if channels==4 and im_c<4:
                 im = np.concatenate([im]+[np.ones((im.shape[0],im.shape[1],1))],axis=2)
         im_cat[idx_d1,idx_d2,:] = im
-    im_cat = np.clip(im_cat,0,1)
+    #im_cat = np.clip(im_cat,0,1)
     if imshow:
         if create_figure:
             plt.figure(figsize=(figsize_per_pixel*im_cat.shape[1],figsize_per_pixel*im_cat.shape[0]))
-        plt.imshow(im_cat,cmap="gray")
+        
+        is_rgb = channels>=3
+        if is_rgb:
+            plt.imshow(np.clip(im_cat,0,1),vmin=0,vmax=1)
+        else:
+            plt.imshow(im_cat,cmap="gray")
+
         if text is not None:
             #max_text_len = max([max(list(map(len,str(t).split("\n")))) for t in text])
             #text_size = 10#*G22/max_text_len*figsize_per_pixel #42.85714=6*16/224/0.01
@@ -251,7 +257,6 @@ def montage(arr,
                 dt1 = p1+G11*i
                 dt2 = p2+G22*j
                 plt.text(x=dt2,y=dt1,s=str(t),color=text_color,va="top",ha="left",size=text_size)
-        plt.show()
 
     if return_im:
         return im_cat
