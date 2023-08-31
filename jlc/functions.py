@@ -629,3 +629,38 @@ def earth_mover_distance(vec1, vec2, input_is_raw_data=False):
         dist += abs(i1-i2)
     dist = dist/len(idx1)
     return dist
+
+def montage_save(save_name="test.png",
+                 save_fig=True,
+                 show_fig=True,
+                 pixel_mult = 4,
+                 **montage_kwargs
+                ):
+    """ Save a montage of images to a file (optional) and show it (optional)
+
+    Args:
+        save_name (str, optional): name of the file to save the image to. Defaults 
+            to "test.png".
+        save_fig (bool, optional): should the image be saved. Defaults to True.
+        show_fig (bool, optional): should the image be shown. Defaults to True.
+        pixel_mult (int, optional): Optional multiplier to be used to make pixels 
+            consist of pixel_mult^2 pixels. Text shown on the montage can however
+            use the lower resolution, making the text independent from how large
+            or small the image is (best to use powers of 2 for nearest neighbour
+            interpolation). Defaults to 4.
+    """
+
+    fig = plt.figure(frameon=False)
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    ax.set_axis_off()
+    fig.add_axes(ax)
+    montage_kwargs["return_im"] = False
+    montage_kwargs["create_figure"] = False
+    montage_kwargs["return_im"] = True
+    montage_im = montage(**montage_kwargs)
+    fig.set_size_inches(montage_im.shape[1]*pixel_mult/100,montage_im.shape[0]*pixel_mult/100)
+    if save_fig:
+        fig.savefig(save_name)
+    if show_fig:
+        plt.show()
+    plt.close(fig)

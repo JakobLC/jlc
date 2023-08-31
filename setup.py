@@ -6,7 +6,7 @@ setup(
     author='Jakob Loenborg Christensen',
     author_email='jakoblc@live.dk',
     description="Useful functions.",
-    version="1.5.14",
+    version="1.5.15",
     packages=find_packages(),
     install_requires=["tifffile",
                       "numpy",
