@@ -664,3 +664,55 @@ def montage_save(save_name="test.png",
     if show_fig:
         plt.show()
     plt.close(fig)
+
+
+class DataloaderIterator():
+    """
+    Class which takes a pytorch dataloader and enables next() ad infinum and 
+    self.partial_epoch gives an iterator which only iterates on a ratio of 
+    an epoch 
+    """
+    def __init__(self,dataloader):
+        """ initialize the dataloader wrapper
+        Args:
+            dataloader (torch.utils.data.dataloader.DataLoader): dataloader to sample from
+        """
+        self.dataloader = dataloader
+        self.iter = iter(self.dataloader)
+        self.partial_flag = False
+        self.partial_round_err = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.partial_flag:
+            if self.partial_counter==self.partial_counter_end:
+                self.partial_flag = False
+                raise StopIteration
+        try:
+            batch = next(self.iter)
+        except StopIteration:    
+            self.iter = iter(self.dataloader)
+            batch = next(self.iter)
+        if self.partial_flag:
+            self.partial_counter += 1
+        return batch
+
+    def partial_epoch(self,ratio):
+        """returns an iterable stopping after a partial epoch 
+        Args:
+            ratio (float): positive float denoting the ratio of the epoch.
+                           e.g. 0.2 will give 20% of an epoch, 1.5 will
+                           give one and a half epoch
+        Returns:
+            iterable: partial epoch iterable
+        """
+        self.partial_flag = True
+        self.partial_counter_end_unrounded = len(self.dataloader)*ratio+self.partial_round_err
+        self.partial_counter_end = int(round(self.partial_counter_end_unrounded))
+        self.partial_round_err = self.partial_counter_end_unrounded-self.partial_counter_end
+        self.partial_counter = 0
+        if self.partial_counter_end==0:
+            self.partial_counter_end = 1
+        return iter(self)
