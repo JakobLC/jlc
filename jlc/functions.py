@@ -89,6 +89,8 @@ def montage(arr,
     montage(np.random.rand(2,3,4,5,3),reshape_size=(40,50))
 
     """
+    if torch.is_tensor(arr):
+        arr = arr.detach().cpu().clone().permute(0,2,3,1).numpy()
     if isinstance(arr,np.ndarray):
         if len(arr.shape)==4:
             arr = [arr[i] for i in range(arr.shape[0])]
@@ -654,7 +656,6 @@ def montage_save(save_name="test.png",
     ax = plt.Axes(fig, [0., 0., 1., 1.])
     ax.set_axis_off()
     fig.add_axes(ax)
-    montage_kwargs["return_im"] = False
     montage_kwargs["create_figure"] = False
     montage_kwargs["return_im"] = True
     montage_im = montage(**montage_kwargs)
@@ -682,6 +683,15 @@ class DataloaderIterator():
         self.partial_flag = False
         self.partial_round_err = 0
 
+    def __len__(self):
+        return len(self.dataloader)
+    
+    def reset(self):
+        """reset the dataloader iterator"""
+        self.iter = iter(self.dataloader)
+        self.partial_flag = False
+        self.partial_round_err = 0
+        
     def __iter__(self):
         return self
 
@@ -716,3 +726,94 @@ class DataloaderIterator():
         if self.partial_counter_end==0:
             self.partial_counter_end = 1
         return iter(self)
+    
+class zoom:
+    def __init__(self, ax=None):
+        if ax is None:
+            ax = plt.gca()
+        self.ax = ax
+        self.cid_scroll = ax.figure.canvas.mpl_connect('scroll_event', self.on_scroll)
+        self.cid_press = ax.figure.canvas.mpl_connect('button_press_event', self.on_press)
+        self.cid_release = ax.figure.canvas.mpl_connect('button_release_event', self.on_release)
+        self.cid_motion = ax.figure.canvas.mpl_connect('motion_notify_event', self.on_motion)
+        self.zoom_factor = 1.2
+        self.dragging = False
+        self.prev_x = None
+        self.prev_y = None
+
+    def on_scroll(self, event):
+        if event.inaxes != self.ax:
+            return
+
+        xdata, ydata = event.xdata, event.ydata
+
+        if event.button == 'up':
+            self.zoom_in(xdata, ydata)
+        elif event.button == 'down':
+            self.zoom_out(xdata, ydata)
+
+        self.ax.figure.canvas.draw()
+        
+    def on_press(self, event):
+        if event.inaxes != self.ax:
+            return
+
+        if event.button == 1:
+            self.dragging = True
+            self.prev_x = event.xdata
+            self.prev_y = event.ydata
+
+    def on_release(self, event):
+        if event.button == 1:
+            self.dragging = False
+            self.prev_x = None
+            self.prev_y = None
+
+    def on_motion(self, event):
+        if event.inaxes != self.ax:
+            return
+
+        if self.dragging:
+            if self.prev_x is not None and self.prev_y is not None:
+                dx = event.xdata - self.prev_x
+                dy = event.ydata - self.prev_y
+                self.translate(dx, dy)
+                self.ax.figure.canvas.draw()
+            self.prev_x, self.prev_y = self.ax.transData.inverted().transform((event.x, event.y))
+
+    def zoom_in(self, x, y):
+        self.update(x, y, 1 / self.zoom_factor)
+
+    def zoom_out(self, x, y):
+        self.update(x, y, self.zoom_factor)
+
+    def translate(self, dx, dy):
+        xlim = self.ax.get_xlim()
+        ylim = self.ax.get_ylim()
+
+        xlim = xlim - dx
+        ylim = ylim - dy
+
+        self.ax.set_xlim(xlim)
+        self.ax.set_ylim(ylim)
+
+        self.update()
+
+    def update(self, x=None, y=None, factor=1.0):
+        if x is not None and y is not None:
+            xlim = self.ax.get_xlim()
+            ylim = self.ax.get_ylim()
+
+            new_width = (xlim[1] - xlim[0]) * factor
+            new_height = (ylim[1] - ylim[0]) * factor
+
+            x_ratio = (x - xlim[0]) / (xlim[1] - xlim[0])
+            y_ratio = (y - ylim[0]) / (ylim[1] - ylim[0])
+
+            xlim = x - new_width * x_ratio, x + new_width * (1 - x_ratio)
+            ylim = y - new_height * y_ratio, y + new_height * (1 - y_ratio)
+
+            self.ax.set_xlim(xlim)
+            self.ax.set_ylim(ylim)
+
+        self.ax.figure.canvas.draw()
