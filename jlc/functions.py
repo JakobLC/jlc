@@ -6,6 +6,7 @@ import torch
 import cv2
 import copy 
 import random
+from PIL import Image, ImageDraw, ImageFont
 
 def montage(arr,
             maintain_aspect=True,
@@ -817,3 +818,201 @@ class zoom:
             self.ax.set_ylim(ylim)
 
         self.ax.figure.canvas.draw()
+
+valid_fontsize = lambda fontsize: max(1,np.round(fontsize).astype(int))
+
+def get_bbox_params(text="A", fontname="times", 
+                    return_im=False,
+                    empty_ratio=0.1, 
+                    height=256,
+                    init_factor=0.5,
+                    max_ite=10, 
+                    ite_scale=2/3,
+                    expected_w_h_ratio_per_letter=0.5,
+                    post_buffer=0.1,
+                    error_on_fail=True):
+    """
+    Function which returns a fontsize and position that 
+    makes the text fit the frame exactly, in a normalized
+    setting with y \in [0,1] and x \in [0,aspect_ratio]
+
+    Inputs:
+    - text: The text to be rendered
+    - font: The font to be used
+    ## hyperparameters
+    - return_im: Whether to return the image with the text
+    - empty_ratio: The ratio of the frame that should be 
+                   empty before believing no text exists outside the frame
+    - height: The height of the image used to render the text
+    - init_factor: The initial factor to multiply the height by to get the fontsize
+    - max_ite: The maximum number of iterations to find the right size
+    - ite_scale: The scale of the step size for the iterations
+    - expected_w_h_ratio_per_letter: The expected width to height ratio per letter
+    - post_buffer: The buffer to leave after the text in the frame
+    - error_on_fail: Whether to raise an error if the text does not fit the 
+                    frame within max_ite iterations
+    
+
+    Returns (as a tuple):
+    - fontsize: The fontsize that makes the text fit the frame
+    - position: The position of the text in the frame
+    - aspect_ratio: The aspect ratio of the frame
+    """
+    num_letters_width = max([len(line) for line in text.split("\n")])
+    num_lines = text.count("\n")+1
+    #size format is (width,height)=(x,y)=(dim 1,dim 0)
+    size = (np.ceil(height*expected_w_h_ratio_per_letter*num_letters_width/num_lines).astype(int),height)
+    image0 = Image.new("L", size, 0)
+    fontsize = size[1]*init_factor
+    position = (size[0] / 2, size[1] / 2)
+    last_fontsize = copy.copy(fontsize)
+    for ite in range(max_ite):
+        image = image0.copy()
+        draw = ImageDraw.Draw(image)
+        draw.text(position, text, 255, font=ImageFont.truetype(fontname, valid_fontsize(fontsize)), anchor="mm")
+        bbox = image.getbbox()
+        current_empty_ratio = min(bbox[0]/size[0],
+                                bbox[1]/size[1],
+                                (size[0]-bbox[2])/size[0],
+                                (size[1]-bbox[3])/size[1])
+        accept = current_empty_ratio>=empty_ratio
+        if accept:
+            if last_fontsize<=fontsize:
+                accept = False
+                fontsize /= ite_scale
+            else:
+                break
+        else:
+            last_fontsize = copy.copy(fontsize)
+            fontsize = fontsize*ite_scale
+            
+    if not accept:
+        if error_on_fail:
+            raise ValueError("Could not find a fontsize that makes the text fit the frame")
+    fontsize = valid_fontsize(fontsize)
+    #render a new image with the right fontsize, leaving exactly buffer of the height and width as margin on each side
+    aspect_ratio = (bbox[2]-bbox[0]+1)/(bbox[3]-bbox[1]+1)
+    post_size = (np.round(height*aspect_ratio).astype(int),height)
+    aspect_ratio = post_size[1]/post_size[0]
+    post_image = Image.new("L", post_size, 0)
+    post_fontsize = valid_fontsize(post_size[1]/(bbox[3]-bbox[1]+1)*(1-post_buffer)*fontsize)
+    new_bbox = get_new_bbox(bbox,scale=post_fontsize/fontsize,anchor=position)
+    #draw old and new bbox on the image
+    #draw.rectangle(bbox, outline=255)
+    #draw.rectangle(new_bbox, outline=255)
+    post_top_left = (post_size[0]*post_buffer/2,
+                     post_size[1]*post_buffer/2)
+    post_position = (position[0]+post_top_left[0]-new_bbox[0],
+                     position[1]+post_top_left[1]-new_bbox[1])
+    draw = ImageDraw.Draw(post_image)
+    font = ImageFont.truetype(fontname, post_fontsize)
+    draw.text(post_position, text, 255, font=font, anchor="mm")
+
+    #repeat for final estimates with no buffer
+    bbox = post_image.getbbox()
+    aspect_ratio = (bbox[2]-bbox[0]+1)/(bbox[3]-bbox[1]+1)
+    fontsize = valid_fontsize(post_fontsize*height/(bbox[3]-bbox[1]+1))
+    new_bbox = get_new_bbox(bbox,scale=fontsize/post_fontsize,anchor=post_position)
+    position = (post_position[0]-new_bbox[0],
+                post_position[1]-new_bbox[1])
+    
+    if return_im:
+        size = (np.round(height*aspect_ratio).astype(int),height)
+        image = Image.new("L", size, 0)
+        draw = ImageDraw.Draw(image)
+        font = ImageFont.truetype(fontname, fontsize)
+        draw.text(position, text, 255, font=font, anchor="mm")
+        fontsize /= height
+        position = (position[0]/height,position[1]/height)
+        return fontsize,position,aspect_ratio,image
+    else:
+        fontsize /= height
+        position = (position[0]/height,position[1]/height)
+        return fontsize,position,aspect_ratio
+
+def get_new_bbox(bbox,scale,anchor):
+    """
+    Function which returns the bounding box obtained by
+    scaling the input bbox fixed on the anchor by the scale
+    """
+    return [anchor[0]+scale*(bbox[0]-anchor[0]),
+            anchor[1]+scale*(bbox[1]-anchor[1]),
+            anchor[0]+scale*(bbox[2]-anchor[0]),
+            anchor[1]+scale*(bbox[3]-anchor[1])]
+
+def render_text(text="A", fontname="times", size=(64, 64), factor=1, crop_to_bbox=False):
+    if isinstance(size, int):
+        size = (size, size)
+    if size[0] is None:
+        height = size[1]
+    elif size[1] is None:
+        height = size[0]
+    else:
+        height = size[1]
+    fontsize,position,aspect_ratio = get_bbox_params(text, fontname, height=height, return_im=False)
+    print(fontsize,position,aspect_ratio)
+    is_too_wide = False
+    is_too_tall = False
+    if size[0] is None:
+        size[0] = size[1]/aspect_ratio
+    elif size[1] is None:
+        size[1] = size[0]*aspect_ratio
+    else:
+        if size[0]/size[1]>aspect_ratio:
+            if crop_to_bbox:
+                size = (size[1]*aspect_ratio, size[1])
+            else:
+                is_too_wide = True
+        elif size[0]/size[1]<aspect_ratio:            
+            if crop_to_bbox:
+                size = (size[0], size[0]/aspect_ratio)
+            else:
+                is_too_tall = True
+        else:
+            pass
+    size_factor = (np.ceil(size[0]*factor).astype(int), 
+                   np.ceil(size[1]*factor).astype(int))
+    size = (np.ceil(size[0]).astype(int), 
+            np.ceil(size[1]).astype(int))
+    if is_too_wide:
+        fontsize_mult = size[1]
+        position = [position[0]*fontsize_mult+(size[0]-size[1]*aspect_ratio)/2,position[1]*fontsize_mult]
+    elif is_too_tall:
+        fontsize_mult = size[0]*(size[0]/size[1])/aspect_ratio
+        position = [position[0]*fontsize_mult,position[1]*size[0]]
+    else:
+        fontsize_mult = size[1]
+        position = [position[0]*fontsize_mult,position[1]*fontsize_mult]
+    fontsize = np.floor(fontsize*fontsize_mult).astype(int)
+    image = Image.new("L", size_factor, 0)
+    draw = ImageDraw.Draw(image)
+    draw.text(position, text, 255, font=ImageFont.truetype(fontname, fontsize), anchor="mm")
+    img_resized = image.resize(size, Image.Resampling.BOX)
+    return img_resized
+
+def pretty_point(im,footprint=None,radius=0.05):
+    if footprint is None:
+        #make star-shaped footprint
+        min_sidelength = min(im.shape[0],im.shape[1])
+        rad1 = np.ceil(radius*min_sidelength*0.66666).astype(int)
+        rad2 = radius*min_sidelength*0.33333
+        rad3 = np.ceil(rad1+rad2).astype(int)
+        footprint = np.ones((2*rad3+1,2*rad3+1))
+        #make cross
+        footprint[rad3,rad3-rad1:rad3+rad1+1] = 0
+        footprint[rad3-rad1:rad3+rad1+1,rad3] = 0
+        footprint = nd.distance_transform_edt(footprint,return_indices=False)
+        footprint = (footprint<=rad2).astype(int)
+    else:
+        assert isinstance(footprint,np.ndarray), "footprint must be a numpy array or None"
+    if len(im.shape)==2:
+        im = im[:,:,np.newaxis]
+    if len(footprint.shape)==2:
+        footprint = footprint[:,:,np.newaxis]
+    #convolve image with footprint
+    conv = nd.convolve(im,footprint,mode='constant',cval=0.0)
+    conv_num = nd.convolve((np.abs(im)>1e-10).astype(float),footprint,mode='constant',cval=0.0)
+    # Same as pretty_point_image = conv/conv_num, but avoiding 0/0
+    pretty_point_image = conv
+    pretty_point_image[conv_num>0] = conv[conv_num>0]/conv_num[conv_num>0]
+    return pretty_point_image
