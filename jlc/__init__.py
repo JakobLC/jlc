@@ -5,3 +5,7 @@ from .functions import (montage,cat,reverse_dict,num_of_params,collage,
 from .voltools import inspect_vol,inspect_tifvol,load_tifvol,save_tifvol
 from . import functions
 from . import voltools
+from . import nc
+from .nc import (large_colors,largest_colors,matplotlib_colors,
+                 cityscapes_colors,matplotlib_pallete,cityscapes_pallete,
+                 large_pallete,largest_pallete)
