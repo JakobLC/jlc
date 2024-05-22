@@ -34,7 +34,7 @@ def montage(arr,
             text_size=10,
             create_figure=True):
     """
-    Function that displays and returns an montage of images from a list or 
+    Displays and returns an montage of images from a list or 
     list of lists of images.
 
     Parameters
@@ -100,6 +100,7 @@ def montage(arr,
 
     """
     if torch.is_tensor(arr):
+        assert len(arr.shape)==4, "torch tensor must have at 4 dims, formatted as (n_images,channels,H,W)"
         arr = arr.detach().cpu().clone().permute(0,2,3,1).numpy()
     if isinstance(arr,np.ndarray):
         if len(arr.shape)==4:
@@ -167,10 +168,14 @@ def montage(arr,
     D1 = np.zeros(n,dtype=int)
     D2 = np.zeros(n,dtype=int)
     aspect = np.zeros(n)
-    
+    im = np.zeros((32,32,3))
     channels = 1
     for n,i,j in zip(N,I,J): 
-        im = arr[i][j]
+        if arr[i][j] is None:#image is replaced with zeros of the same size as the previous image
+            im = np.zeros_like(im)
+        else:
+            im = arr[i][j]
+        
         D1[n] = im.shape[0]
         D2[n] = im.shape[1]
         if len(im.shape)>2:
