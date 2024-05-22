@@ -30,7 +30,7 @@ def montage(arr,
             padding_color=0,
             rows_first=True,
             figsize_per_pixel=1/100,
-            text_color=[0,0,0],
+            text_color=[1,0,0],
             text_size=10,
             create_figure=True):
     """
@@ -1385,7 +1385,7 @@ def to_xy_anchor(anchor):
     out = tuple([float(x) for x in out])
     return out
 
-def add_text_axis_to_image(filename,
+def add_text_axis_to_image(filename_or_image,
                            new_filename = None,
                            n_horz=None,n_vert=None,
                            top=[],bottom=[],left=[],right=[],
@@ -1396,16 +1396,13 @@ def add_text_axis_to_image(filename,
                            add_spaces=True,
                            save=True):
     """
-    Function to take an image filename and add text to the top, 
-    bottom, left, and right of the image. The text is rendered
-    using matplotlib and up to 4 temporary files are created to
-    render the text. The temporary files are removed after the
-    original file has been modified.
+    Function to take an image filename or numpy array of an image 
+    and add text to the top, bottom, left, and right of the image.
 
     Parameters
     ----------
-    filename : str
-        The filename of the image to modify.
+    filename_or_image : str
+        The filename_or_image of the image to modify.
     n_horz : int, optional
         The number of horizontal text labels to add. The default
         is None (max(len(top),len(bottom))).
@@ -1452,11 +1449,11 @@ def add_text_axis_to_image(filename,
         n_horz = max(len(top),len(bottom))
     if n_vert is None:
         n_vert = max(len(left),len(right))
-    if isinstance(filename,np.ndarray):
-        im = filename
+    if isinstance(filename_or_image,np.ndarray):
+        im = filename_or_image
     else:
-        assert os.path.exists(filename), f"filename {filename} does not exist"
-        im = np.array(Image.open(filename))
+        assert os.path.exists(filename_or_image), f"filename {filename_or_image} does not exist"
+        im = np.array(Image.open(filename_or_image))
     h,w,c = im.shape
     xtick_kwargs_per_pos = {"top":    {"rotation": 0,  "labels": top},
                             "bottom": {"rotation": 0,  "labels": bottom},
@@ -1514,12 +1511,13 @@ def add_text_axis_to_image(filename,
             im2[bp+pos_sizes["top"]:bp+pos_sizes["top"]+h,bp+pos_sizes["left"]+w:-bp] = np.rot90(pos_renders["right"],k=3)
     if new_file:
         if new_filename is None:
-            suffix = filename.split(".")[-1]
-            new_filename = filename[:-len(suffix)-1]+"_w_text."+suffix
+            assert isinstance(filename_or_image,str), "the new filename must be specified if a numpy array is passed directly"
+            suffix = filename_or_image.split(".")[-1]
+            new_filename = filename_or_image[:-len(suffix)-1]+"_w_text."+suffix
             for i in range(1000):
                 if not os.path.exists(new_filename):
                     break
-                new_filename = filename[:-len(suffix)-1]+"_w_text("+str(i)+")."+suffix
+                new_filename = filename_or_image[:-len(suffix)-1]+"_w_text("+str(i)+")."+suffix
         filename = new_filename
     if save:
         Image.fromarray(im2).save(filename)
