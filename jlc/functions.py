@@ -1446,6 +1446,8 @@ def add_text_axis_to_image(filename_or_image,
         n_vert = max(len(left),len(right))
     if isinstance(filename_or_image,np.ndarray):
         im = filename_or_image
+        if im.dtype==np.float32:
+            im = (im*255).astype(np.uint8)
     else:
         assert os.path.exists(filename_or_image), f"filename {filename_or_image} does not exist"
         im = np.array(Image.open(filename_or_image))
@@ -1468,6 +1470,8 @@ def add_text_axis_to_image(filename_or_image,
         xk = dict(**xtick_kwargs_per_pos[pos],**xtick_kwargs)
         if add_spaces:
             xk["labels"] = [" "+l+" " for l in xk["labels"]]
+            if pos=="bottom":
+                xk["labels"] = [l+"\n" for l in xk["labels"]]
         if not "ticks" in xk.keys():
             n = n_horz if pos in ["top","bottom"] else n_vert
 
