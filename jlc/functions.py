@@ -172,9 +172,10 @@ def montage(arr,
     channels = 1
     for n,i,j in zip(N,I,J): 
         if arr[i][j] is None:#image is replaced with zeros of the same size as the previous image
-            im = np.zeros_like(im)
+            arr[i][j] = np.zeros_like(im)
         else:
-            im = arr[i][j]
+            assert isinstance(arr[i][j],np.ndarray), "images in arr must be np.ndarrays (or None for a zero-image)"
+        im = arr[i][j]
         
         D1[n] = im.shape[0]
         D2[n] = im.shape[1]
