@@ -1446,7 +1446,7 @@ def add_text_axis_to_image(filename_or_image,
         n_vert = max(len(left),len(right))
     if isinstance(filename_or_image,np.ndarray):
         im = filename_or_image
-        if im.dtype==np.float32:
+        if not np.uint8==im.dtype:
             im = (im*255).astype(np.uint8)
     else:
         assert os.path.exists(filename_or_image), f"filename {filename_or_image} does not exist"
