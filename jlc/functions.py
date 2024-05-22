@@ -1386,15 +1386,13 @@ def to_xy_anchor(anchor):
     return out
 
 def add_text_axis_to_image(filename_or_image,
-                           new_filename = None,
+                           save_filename=None,
                            n_horz=None,n_vert=None,
                            top=[],bottom=[],left=[],right=[],
                            bg_color="white",
                            xtick_kwargs={},
-                           new_file=False,
                            buffer_pixels=4,
-                           add_spaces=True,
-                           save=True):
+                           add_spaces=True):
     """
     Function to take an image filename or numpy array of an image 
     and add text to the top, bottom, left, and right of the image.
@@ -1403,6 +1401,9 @@ def add_text_axis_to_image(filename_or_image,
     ----------
     filename_or_image : str
         The filename_or_image of the image to modify.
+    save_filename : str, optional
+        The filename to save the modified image to. The default
+        is None (do not save the image).
     n_horz : int, optional
         The number of horizontal text labels to add. The default
         is None (max(len(top),len(bottom))).
@@ -1427,18 +1428,12 @@ def add_text_axis_to_image(filename_or_image,
     xtick_kwargs : dict, optional
         The keyword arguments to pass to matplotlib.pyplot.xticks.
         The default is {}.        
-    new_file : bool, optional
-        If True, then a new file is created with the text axis
-        added. If False, then the original file is modified. The
-        default is False.
     buffer_pixels : int, optional
         The number of pixels to add as a buffer between the image
         and the text. The default is 4.
     add_spaces : bool, optional
         If True, then a space is added to the beginning and end of
         each label. The default is True.
-    save : bool, optional
-        If True, then the new file is saved. The default is True.
         
     Returns
     -------
@@ -1509,18 +1504,8 @@ def add_text_axis_to_image(filename_or_image,
             im2[bp+pos_sizes["top"]:bp+pos_sizes["top"]+h,bp:bp+pos_sizes["left"]] = np.rot90(pos_renders["left"],k=3)
         elif pos=="right":
             im2[bp+pos_sizes["top"]:bp+pos_sizes["top"]+h,bp+pos_sizes["left"]+w:-bp] = np.rot90(pos_renders["right"],k=3)
-    if new_file:
-        if new_filename is None:
-            assert isinstance(filename_or_image,str), "the new filename must be specified if a numpy array is passed directly"
-            suffix = filename_or_image.split(".")[-1]
-            new_filename = filename_or_image[:-len(suffix)-1]+"_w_text."+suffix
-            for i in range(1000):
-                if not os.path.exists(new_filename):
-                    break
-                new_filename = filename_or_image[:-len(suffix)-1]+"_w_text("+str(i)+")."+suffix
-        filename = new_filename
-    if save:
-        Image.fromarray(im2).save(filename)
+    if save_filename is not None:
+        Image.fromarray(im2).save(save_filename)
     return im2
 
 def get_matplotlib_color(color,num_channels=3):
