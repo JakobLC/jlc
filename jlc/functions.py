@@ -1131,14 +1131,14 @@ class MatplotlibTempBackend():
     def __exit__(self, exc_type, exc_val, exc_tb):
         matplotlib.use(self.old_backend)
 
-def quantile_normalize(x, alpha=0.001, q=None):
+def quantile_normalize(x, alpha=0.001, q=None, eps=1e-10):
     if alpha is not None:
         assert q is None, "expected exactly 1 of alpha or q to be None"
         q = [alpha, 1-alpha]
     assert q is not None, "expected exactly 1 of alpha or q to be None"
     assert len(q)==2, "expected len(q)==2"
     minval,maxval = np.quantile(x,q)
-    x = (x-minval)/(maxval-minval)
+    x = (x-minval)/(maxval-minval+eps)
     x = np.clip(x,0,1)
     return x
 
