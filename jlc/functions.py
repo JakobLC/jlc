@@ -1143,6 +1143,7 @@ def quantile_normalize(x, alpha=0.001, q=None, eps=1e-10):
     x = np.clip(x,0,1)
     return x
 
+
 def simulated_legend(list_of_plot_kwargs, legend_kwargs={}, use_legend=True):
     """
     Create a custom legend based on a list of plot keyword arguments.
@@ -1160,22 +1161,35 @@ def simulated_legend(list_of_plot_kwargs, legend_kwargs={}, use_legend=True):
     handles : list
         List of handles for the legend entries.
     """
+    valid_linestyles = ['None','--','-.',':','-',' ','']
     handles = []
-    
+    list_of_plot_kwargs = copy.deepcopy(list_of_plot_kwargs)
     for kwargs in list_of_plot_kwargs:
-        label = kwargs.get('label', None)
-        if label is not None:
-            color = kwargs.get('color', 'b')
-            linestyle = kwargs.get('linestyle', '-')
-            linewidth = kwargs.get('linewidth', 2)
-            marker = kwargs.get('marker', None)
-            
-            if marker:
-                handle = mlines.Line2D([], [], color=color, linestyle='None', marker=marker, label=label)
+        assert "label" in kwargs, "Each dictionary in list_of_plot_kwargs must contain a 'label' key."
+        if ("fmt" in kwargs) and not ("linestyle" in kwargs):
+            kwargs["linestyle"] = kwargs["fmt"]
+            del kwargs["fmt"]
+        if "linestyle" in kwargs:
+            if kwargs["linestyle"] in valid_linestyles:
+                linestyle = kwargs["linestyle"]
+                marker = kwargs.get("marker", None)
             else:
-                handle = mlines.Line2D([], [], color=color, linestyle=linestyle, linewidth=linewidth, label=label)
-            
-            handles.append(handle)
+                # assumes that if no substring is a valid linestyle, then the entire string is a marker
+                has_substring_linestyle = any([s in kwargs["linestyle"] for s in valid_linestyles])
+                if has_substring_linestyle:
+                    linestyle = [s for s in valid_linestyles if s in kwargs["linestyle"]][0]
+                    #marker is the remainder of the string
+                    marker = kwargs["linestyle"].replace(linestyle, "")
+                else:
+                    marker = kwargs["linestyle"]
+                    linestyle = "None"
+        else:
+            marker = kwargs.get("marker", None)
+            linestyle = "-"
+        kwargs["linestyle"] = linestyle
+        kwargs["marker"] = marker
+        handle = mlines.Line2D([], [], **kwargs)
+        handles.append(handle)
     
     if use_legend:
         plt.legend(handles=handles, **legend_kwargs)
