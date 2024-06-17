@@ -6,7 +6,7 @@ setup(
     author='Jakob Loenborg Christensen',
     author_email='jloch@dtu.dk',
     description="Useful functions for image processing.",
-    version="2.0.3",
+    version="2.0.4",
     packages=find_packages(),
     install_requires=["tifffile",
                       "numpy",

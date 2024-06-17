@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.colors as mcolors
 
 matplotlib_pallete =   [0,0,0,
                         31, 119, 180, 
@@ -48,3 +49,45 @@ matplotlib_colors = np.array(matplotlib_pallete[3:]).reshape(-1, 3)
 cityscapes_colors = np.array(cityscapes_pallete[3:]).reshape(-1, 3)
 large_colors = np.array(large_pallete[3:]).reshape(-1, 3)
 largest_colors = np.array(largest_pallete[3:]).reshape(-1, 3)
+
+def convert_mpl_color(color, output_type="tuple"):
+    """
+    Convert a color to the desired output format.
+
+    Parameters:
+    color : str, tuple, list
+        The input color which can be a color name, hex code, or a tuple/list of RGB(A) values.
+    output_type : str
+        The desired output format: "tuple", "list", "hex", or "name".
+
+    Returns:
+    converted_color : tuple, list, str
+        The color converted to the desired format.
+    """
+    
+    # Convert the color to RGBA format first
+    try:
+        rgba = mcolors.to_rgba(color)
+    except ValueError:
+        raise ValueError("Invalid color format")
+
+    # Convert to the desired output type
+    if output_type == "tuple":
+        return rgba
+    elif output_type == "list":
+        return list(rgba)
+    elif output_type == "hex":
+        return mcolors.to_hex(rgba)
+    elif output_type == "name":
+        if color in mcolors.CSS4_COLORS:
+            return color
+        else:
+            # Attempt to find the closest named color
+            name, min_dist = None, float('inf')
+            for cname, crgba in mcolors.CSS4_COLORS.items():
+                dist = sum((c1 - c2) ** 2 for c1, c2 in zip(rgba, mcolors.to_rgba(crgba)))
+                if dist < min_dist:
+                    name, min_dist = cname, dist
+            return name
+    else:
+        raise ValueError("Invalid output type")

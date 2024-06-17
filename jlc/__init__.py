@@ -13,4 +13,4 @@ from . import voltools
 from . import nc
 from .nc import (large_colors,largest_colors,matplotlib_colors,
                  cityscapes_colors,matplotlib_pallete,cityscapes_pallete,
-                 large_pallete,largest_pallete)
+                 large_pallete,largest_pallete,convert_mpl_color)
