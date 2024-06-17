@@ -16,6 +16,7 @@ import os
 from . import nc
 import warnings
 from skimage.measure import find_contours
+import matplotlib.lines as mlines
 
 def montage(arr,
             maintain_aspect=True,
@@ -1142,6 +1143,44 @@ def quantile_normalize(x, alpha=0.001, q=None, eps=1e-10):
     x = np.clip(x,0,1)
     return x
 
+def simulated_legend(list_of_plot_kwargs, legend_kwargs={}, use_legend=True):
+    """
+    Create a custom legend based on a list of plot keyword arguments.
+
+    Parameters:
+    list_of_plot_kwargs : list of dict
+        List of dictionaries where each dictionary contains keyword arguments
+        for plt.plot (i.e., linestyle, label, linewidth, etc.).
+    legend_kwargs : dict, optional
+        Keyword arguments for plt.legend.
+    use_legend : bool, optional
+        Whether to display the legend.
+
+    Returns:
+    handles : list
+        List of handles for the legend entries.
+    """
+    handles = []
+    
+    for kwargs in list_of_plot_kwargs:
+        label = kwargs.get('label', None)
+        if label is not None:
+            color = kwargs.get('color', 'b')
+            linestyle = kwargs.get('linestyle', '-')
+            linewidth = kwargs.get('linewidth', 2)
+            marker = kwargs.get('marker', None)
+            
+            if marker:
+                handle = mlines.Line2D([], [], color=color, linestyle='None', marker=marker, label=label)
+            else:
+                handle = mlines.Line2D([], [], color=color, linestyle=linestyle, linewidth=linewidth, label=label)
+            
+            handles.append(handle)
+    
+    if use_legend:
+        plt.legend(handles=handles, **legend_kwargs)
+    
+    return handles
 
 def load_state_dict_loose(model_arch,state_dict,allow_diff_size=True,verbose=False):
     arch_state_dict = model_arch.state_dict()
