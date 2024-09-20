@@ -850,7 +850,7 @@ def get_bbox_params(text="A", fontname="times",
     """
     Function which returns a fontsize and position that 
     makes the text fit the frame exactly, in a normalized
-    setting with y \in [0,1] and x \in [0,aspect_ratio]
+    setting with y in [0,1] and x in [0,aspect_ratio]
 
     Inputs:
     - text: The text to be rendered
@@ -1262,15 +1262,24 @@ class TemporarilyDeterministic:
 
 
 class RenderMatplotlibAxis:
-    def __init__(self, height, width=None, with_axis=False, set_lims=False, with_alpha=False, dpi=100):
+    def __init__(self, height, width=None, with_axis=False, set_lims=False, with_alpha=False, dpi=100, show_im=False):
+        self.image_to_show = None
         if (width is None) and isinstance(height, (tuple, list)):
             #height is a shape
             height,width = height[:2]
         elif (width is None) and isinstance(height, np.ndarray):
+            if show_im:
+                self.image_to_show = height
+                if self.image_to_show.dtype in [np.float32,np.float64]:
+                    self.image_to_show = (self.image_to_show*255).astype(np.uint8)
             #height is an image
             height,width = height.shape[:2]
         elif width is None:
             width = height
+        assert isinstance(height, int), f"expected height to be an int after processing, found {type(height)}"
+        assert isinstance(width, int), f"expected width to be an int after processing, found {type(width)}"
+        if show_im:
+            assert self.image_to_show is not None, "expected the first input (height) to be an image if show_im is True"
         self.with_alpha = with_alpha
         self.width = width
         self.height = height
@@ -1298,6 +1307,8 @@ class RenderMatplotlibAxis:
             self.ax.get_xaxis().set_visible(False)
             self.ax.get_yaxis().set_visible(False)
         self.fig.add_axes(self.ax)
+        if self.image_to_show is not None:
+            self.ax.imshow(self.image_to_show)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -1353,7 +1364,6 @@ def item_to_rect_lists(item,n1,n2,fill_with_previous=True, fill_val=None):
 
 def render_text_gridlike(image, x_sizes, y_sizes, 
                         text_inside=[],
-                        transpose_text_inside=False,
                         text_pos_kwargs={},
                         pixel_mult=1, 
                         text_kwargs={"color":"red","fontsize": 20,"verticalalignment":"bottom","horizontalalignment":"left"},
@@ -1366,9 +1376,11 @@ def render_text_gridlike(image, x_sizes, y_sizes,
 
     h,w = image.shape[:2]
     if pixel_mult>1:
+        print(image.shape)
         h,w = (np.round(w*pixel_mult).astype(int),
                np.round(h*pixel_mult).astype(int))
-        image = cv2.resize(copy.copy(image),(w,h))
+        image = cv2.resize(copy.copy(image),(h,w))
+        print(image.shape)
     
     x_sum = sum(x_sizes)
     y_sum = sum(y_sizes)
@@ -1376,22 +1388,32 @@ def render_text_gridlike(image, x_sizes, y_sizes,
         x_sizes = [x/x_sum*w for x in x_sizes]
     if not y_sum==1.0:
         y_sizes = [y/y_sum*h for y in y_sizes]
-    if len(text_inside)>0:
-        #make sure text_inside is a list of lists, with correct lengths
-        text_inside = copy.deepcopy(text_inside)
-        assert len(text_inside)<=nx, f"expected len(text_inside) to be <= len(x_sizes), found {len(text_inside)}>{nx}"
-        for i in range(len(text_inside)):
-            assert len(text_inside[i])<=ny, f"expected len(text_inside[{i}]) to be <= len(y_sizes), found {len(text_inside[i])}>{ny}"
-        if len(text_inside)<nx:
-            text_inside.extend([[] for _ in range(nx-len(text_inside))])
-        for i in range(len(text_inside)):
-            if len(text_inside[i])<ny:
-                text_inside[i].extend(["" for _ in range(ny-len(text_inside[i]))])
 
-        if transpose_text_inside:
-            text_inside = list(zip(*text_inside))
-        with RenderMatplotlibAxis(w,h,set_lims=1) as renderer: #TODO (is this an error? w,h should be switched)
-            plt.imshow(image/255)
+    assert len(text_inside)<=nx, f"expected len(text_inside) to be <= len(x_sizes), found {len(text_inside)}>{nx}"
+    for i in range(len(text_inside)):
+        assert len(text_inside[i])<=ny, f"expected len(text_inside[{i}]) to be <= len(y_sizes), found {len(text_inside[i])}>{ny}"
+    #make sure text_inside is a list of lists, with correct lengths
+    text_inside = copy.deepcopy(text_inside)
+    if len(text_inside)<nx:
+        text_inside.extend([[] for _ in range(nx-len(text_inside))])
+    for i in range(len(text_inside)):
+        if len(text_inside[i])<ny:
+            text_inside[i].extend(["" for _ in range(ny-len(text_inside[i]))])
+
+    do_text_inside = False
+    if len(text_inside)>0:
+        all_strings = ""
+        for t in text_inside:
+            if isinstance(t,str):
+                all_strings += t
+            else:
+                assert isinstance(t,list), "expected text_inside to contain strings or lists of strings, found "+str(t)
+                for tt in t:
+                    all_strings += tt
+        if len(all_strings)>0:
+            do_text_inside = True
+    if do_text_inside:
+        with RenderMatplotlibAxis(image,set_lims=1,show_im=1) as renderer:
             for xi in range(len(x_sizes)):
                 for yi in range(len(y_sizes)):
                     anc_x,anc_y = anchor_image[xi][yi]
@@ -1406,7 +1428,13 @@ def render_text_gridlike(image, x_sizes, y_sizes,
         rendered = image
     valid_pos = ["top","bottom","left","right"]
     if any([k in text_pos_kwargs for k in valid_pos]):
-        text_pos_kwargs2 = {"n_horz": len(x_sizes), "n_vert": len(y_sizes),"save": False, "buffer_pixels": 0, "add_spaces": 0}
+        #fix for cutoff of last letter for left-right texts
+        if "left" in text_pos_kwargs:
+            text_pos_kwargs["left"] = [" "+x for x in text_pos_kwargs["left"]]
+        if "right" in text_pos_kwargs:
+            text_pos_kwargs["right"] = [x+" " for x in text_pos_kwargs["right"]]
+
+        text_pos_kwargs2 = {"n_horz": len(x_sizes), "n_vert": len(y_sizes), "buffer_pixels": 0, "add_spaces": 0}
         text_pos_kwargs2.update(text_pos_kwargs)
         rendered = add_text_axis_to_image(rendered,**text_pos_kwargs2)
     return rendered
