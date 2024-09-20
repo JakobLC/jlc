@@ -1351,7 +1351,6 @@ def item_to_rect_lists(item,n1,n2,fill_with_previous=True, fill_val=None):
             out[i].extend([fill_val for _ in range(n2-len(out[i]))])
     return out
 
-
 def render_text_gridlike(image, x_sizes, y_sizes, 
                         text_inside=[],
                         transpose_text_inside=False,
@@ -1365,44 +1364,46 @@ def render_text_gridlike(image, x_sizes, y_sizes,
     anchor_image = item_to_rect_lists(copy.deepcopy(anchor_image),nx,ny)
     anchor_image = [[to_xy_anchor(a) for a in row] for row in anchor_image]
 
+    h,w = image.shape[:2]
     if pixel_mult>1:
-        h,w = image.shape[:2]
         h,w = (np.round(w*pixel_mult).astype(int),
                np.round(h*pixel_mult).astype(int))
         image = cv2.resize(copy.copy(image),(w,h))
     
-    #make sure text_inside is a list of lists, with correct lengths
-    text_inside = copy.deepcopy(text_inside)
-    assert len(text_inside)<=nx, f"expected len(text_inside) to be <= len(x_sizes), found {len(text_inside)}>{nx}"
-    for i in range(len(text_inside)):
-        assert len(text_inside[i])<=ny, f"expected len(text_inside[{i}]) to be <= len(y_sizes), found {len(text_inside[i])}>{ny}"
-    if len(text_inside)<nx:
-        text_inside.extend([[] for _ in range(nx-len(text_inside))])
-    for i in range(len(text_inside)):
-        if len(text_inside[i])<ny:
-            text_inside[i].extend(["" for _ in range(ny-len(text_inside[i]))])
-
-    if transpose_text_inside:
-        text_inside = list(zip(*text_inside))
-    h,w = image.shape[:2]
     x_sum = sum(x_sizes)
     y_sum = sum(y_sizes)
     if not x_sum==1.0:
         x_sizes = [x/x_sum*w for x in x_sizes]
     if not y_sum==1.0:
         y_sizes = [y/y_sum*h for y in y_sizes]
-    with RenderMatplotlibAxis(w,h,set_lims=1) as renderer: #TODO (is this an error? w,h should be switched)
-        plt.imshow(image/255)
-        for xi in range(len(x_sizes)):
-            for yi in range(len(y_sizes)):
-                anc_x,anc_y = anchor_image[xi][yi]
-                x = sum(x_sizes[:xi])+anc_x*x_sizes[xi]
-                y = sum(y_sizes[:yi])+anc_y*y_sizes[yi]
-                if len(text_inside[xi][yi])>0:
-                    txt = plt.text(x,y,text_inside[xi][yi],**text_kwargs)
-                    if border_width_inside>0:
-                        txt.set_path_effects([withStroke(linewidth=border_width_inside, foreground='black')])
-    rendered = renderer.image
+    if len(text_inside)>0:
+        #make sure text_inside is a list of lists, with correct lengths
+        text_inside = copy.deepcopy(text_inside)
+        assert len(text_inside)<=nx, f"expected len(text_inside) to be <= len(x_sizes), found {len(text_inside)}>{nx}"
+        for i in range(len(text_inside)):
+            assert len(text_inside[i])<=ny, f"expected len(text_inside[{i}]) to be <= len(y_sizes), found {len(text_inside[i])}>{ny}"
+        if len(text_inside)<nx:
+            text_inside.extend([[] for _ in range(nx-len(text_inside))])
+        for i in range(len(text_inside)):
+            if len(text_inside[i])<ny:
+                text_inside[i].extend(["" for _ in range(ny-len(text_inside[i]))])
+
+        if transpose_text_inside:
+            text_inside = list(zip(*text_inside))
+        with RenderMatplotlibAxis(w,h,set_lims=1) as renderer: #TODO (is this an error? w,h should be switched)
+            plt.imshow(image/255)
+            for xi in range(len(x_sizes)):
+                for yi in range(len(y_sizes)):
+                    anc_x,anc_y = anchor_image[xi][yi]
+                    x = sum(x_sizes[:xi])+anc_x*x_sizes[xi]
+                    y = sum(y_sizes[:yi])+anc_y*y_sizes[yi]
+                    if len(text_inside[xi][yi])>0:
+                        txt = plt.text(x,y,text_inside[xi][yi],**text_kwargs)
+                        if border_width_inside>0:
+                            txt.set_path_effects([withStroke(linewidth=border_width_inside, foreground='black')])
+        rendered = renderer.image
+    else:
+        rendered = image
     valid_pos = ["top","bottom","left","right"]
     if any([k in text_pos_kwargs for k in valid_pos]):
         text_pos_kwargs2 = {"n_horz": len(x_sizes), "n_vert": len(y_sizes),"save": False, "buffer_pixels": 0, "add_spaces": 0}
