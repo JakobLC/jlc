@@ -1835,7 +1835,7 @@ def tensor_info(x,newlines=True):
             "std": x.std().item(),
             **d}
         #how bins in the min-max interval are non-empty when using as many bins as data points
-        v = x.cpu().numpy().flatten()
+        v = x.cpu().detach().numpy().flatten()
         d["fill"] = (np.histogram(v,bins=len(v),range=(d["min"],d["max"]))[0]>0).mean().item()
 
     s = ""

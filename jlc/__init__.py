@@ -6,7 +6,7 @@ from .functions import (montage,cat,reverse_dict,num_of_params,collage,
                         get_mask,render_axis_ticks,darker_color,get_matplotlib_color,
                         add_text_axis_to_image,to_xy_anchor,render_text_gridlike,
                         item_to_rect_lists,shaprint,MatplotlibTempBackend,quantile_normalize,
-                        TemporarilyDeterministic,load_state_dict_loose,simulated_legend,)
+                        TemporarilyDeterministic,load_state_dict_loose,simulated_legend,tensor_info)
 from .voltools import inspect_vol,inspect_tifvol,load_tifvol,save_tifvol
 from . import functions
 from . import voltools
