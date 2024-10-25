@@ -1369,8 +1369,20 @@ def render_text_gridlike(image, x_sizes, y_sizes,
                         text_kwargs={"color":"red","fontsize": 20,"verticalalignment":"bottom","horizontalalignment":"left"},
                         anchor_image="NW",
                         border_width_inside=0):
-    nx = len(x_sizes)
-    ny = len(y_sizes)
+    if isinstance(x_sizes,int):
+        nx = x_sizes
+        x_sizes = [1 for _ in range(nx)]
+    else:
+        assert isinstance(x_sizes,list), "expected x_sizes to be an int or a list"
+        assert all([isinstance(x,(int,float)) for x in x_sizes]), "expected all elements of x_sizes to be int or float"
+        nx = len(x_sizes)
+    if isinstance(y_sizes,int):
+        ny = y_sizes
+        y_sizes = [1 for _ in range(ny)]
+    else:
+        assert isinstance(y_sizes,list), "expected y_sizes to be an int or a list"
+        assert all([isinstance(y,(int,float)) for y in y_sizes]), "expected all elements of y_sizes to be int or float"
+        ny = len(y_sizes)
     anchor_image = item_to_rect_lists(copy.deepcopy(anchor_image),nx,ny)
     anchor_image = [[to_xy_anchor(a) for a in row] for row in anchor_image]
 
@@ -1682,9 +1694,9 @@ def mask_overlay_smooth(image,
                         set_lims=True):
     assert isinstance(image,np.ndarray)
     assert isinstance(mask,np.ndarray)
-    assert len(image.shape)>=num_spatial_dims, "image must have at least num_spatial_dims dimensions"
-    assert len(mask.shape)>=num_spatial_dims, "mask must have at least num_spatial_dims dimensions"
-    assert image.shape[:num_spatial_dims]==mask.shape[:num_spatial_dims], "image and mask must have the same shape"
+    assert len(image.shape)>=num_spatial_dims, f"image must have at least num_spatial_dims dimensions. Found {len(image.shape)}"
+    assert len(mask.shape)>=num_spatial_dims, f"mask must have at least num_spatial_dims dimensions. Found {len(mask.shape)}"
+    assert image.shape[:num_spatial_dims]==mask.shape[:num_spatial_dims], f"image shape:{image.shape}\nmask shape: {mask.shape}"
     if pallete is None:
         pallete = np.concatenate([np.array([[0,0,0]]),nc.largest_colors],axis=0)
     if image.dtype==np.uint8:
@@ -1780,3 +1792,69 @@ def distance_transform_edt_border(mask):
     padded = np.pad(mask,1,mode="constant",constant_values=0)
     dist = nd.distance_transform_edt(padded)
     return dist[1:-1,1:-1]
+
+def tensor_info(x,newlines=True):
+    """Returns a string to describe a torch.Tensor (or numpy ndarray by converting)"""
+    type_str = type(x).__name__
+    shape_str = "x".join([str(i) for i in x.shape])
+    dtype_str = str(x.dtype)
+    if isinstance(x,np.ndarray):
+        x = torch.tensor(x)
+    original_numel = x.numel()
+    d = {}
+    special_values = torch.any(torch.isnan(x)) or torch.any(torch.isinf(x))
+    if special_values:
+        nans = torch.isnan(x)
+        if nans.any():
+            d["NAN"] = nans.sum().item()
+            d["NAN_ratio"] = d["NAN"]/original_numel
+            x = x[~nans]
+        plus_inf = torch.logical_and(torch.isinf(x),x>0)
+        if plus_inf.any():
+            d["+INF"] = plus_inf.sum().item()
+            d["+INF_ratio"] = d["+INF"]/original_numel
+            x = x[~plus_inf]
+        minus_inf = torch.logical_and(torch.isinf(x),x<0)
+        if minus_inf.any():
+            d["-INF"] = minus_inf.sum().item()
+            d["-INF_ratio"] = d["-INF"]/original_numel
+            x = x[~minus_inf]
+
+    #convert bool to float
+    if x.dtype==torch.bool:
+        x = x.float()
+    d = {"type": type_str,
+        "shape": shape_str, 
+        "numel": original_numel,
+        "dtype": dtype_str, 
+        **d}
+    if x.numel()>0:
+        d = {"min": x.min().item(), 
+            "max": x.max().item(), 
+            "mean": x.mean().item(), 
+            "std": x.std().item(),
+            **d}
+        #how bins in the min-max interval are non-empty when using as many bins as data points
+        v = x.cpu().numpy().flatten()
+        d["fill"] = (np.histogram(v,bins=len(v),range=(d["min"],d["max"]))[0]>0).mean().item()
+
+    s = ""
+    for k,v in d.items():
+        
+        if isinstance(v,float):
+            should_be_scientific = not (1e-4 < abs(v) < 1e4) and v!=0
+            fmt = ".3e" if should_be_scientific else ".3f"
+        elif isinstance(v,int):
+            fmt = "d" if abs(v)<1e4 else "e"
+        else:
+            assert isinstance(v,(str)), f"v={v} is of type {type(v)}"
+            fmt = ""
+
+        
+        if newlines:
+            max_key_len = max([len(k) for k in d.keys()])
+            fmt = fmt.replace(".3","8.3").replace("d","8d")
+            s += f"{k:{max_key_len}}: {v:{fmt}},\n"
+        else:
+            s += f"{k}: {v:{fmt}}, "
+    return s
