@@ -17,6 +17,14 @@ from . import nc
 import warnings
 from skimage.measure import find_contours
 import matplotlib.lines as mlines
+import jsonlines
+import json
+
+def is_list_of_lists(l):
+    if isinstance(l,list):
+        if all([isinstance(ll,list) for ll in l]):
+            return True
+    return False
 
 def montage(arr,
             maintain_aspect=True,
@@ -107,6 +115,8 @@ def montage(arr,
         if len(arr.shape)==4:
             arr = [arr[i] for i in range(arr.shape[0])]
         elif len(arr.shape)==5:
+            if not rows_first:
+                arr = np.transpose(arr,(1,0,2,3,4))
             n1 = arr.shape[0]
             n2 = arr.shape[1]
             arr = [[arr[i,j] for j in range(arr.shape[1])]
@@ -1858,3 +1868,56 @@ def tensor_info(x,newlines=True):
         else:
             s += f"{k}: {v:{fmt}}, "
     return s
+
+def save_dict_list_to_json(data_list, file_path, append=False):
+    assert isinstance(file_path,str), "file_path must be a string"
+    if not isinstance(data_list,list):
+        data_list = [data_list]
+    
+    if file_path.endswith(".json"):
+        loaded_data = []
+        if append:
+            if Path(file_path).exists():
+                loaded_data = load_json_to_dict_list(file_path)
+                if not isinstance(loaded_data,list):
+                    loaded_data = [loaded_data]
+        data_list = loaded_data + data_list
+        with open(file_path, "w") as json_file:
+            json.dump(data_list, json_file, indent=4)
+    else:
+        assert file_path.endswith(".jsonl"), "File path must end with .json or .jsonl"
+        mode = "a" if append else "w"
+        with jsonlines.open(file_path, mode=mode) as writer:
+            for line in data_list:
+                writer.write(line)
+
+def load_json_to_dict_list(file_path):
+    assert len(file_path)>=5, "File path must end with .json"
+    assert file_path[-5:] in ["jsonl",".json"], "File path must end with .json or .jsonl"
+    if file_path[-5:] == "jsonl":
+        assert len(file_path)>=6, "File path must end with .json or .jsonl"
+        assert file_path[-6:]==".jsonl","File path must end with .json or .jsonl"
+    if file_path[-5:] == ".json":
+        with open(file_path, 'r') as json_file:
+            data_list = json.load(json_file)
+    elif file_path[-6:] == ".jsonl":
+        data_list = []
+        with jsonlines.open(file_path) as reader:
+            for line in reader:
+                data_list.append(line)
+    return data_list
+
+def longest_common_substring(str1, str2):
+    dp = [[0] * (len(str2) + 1) for _ in range(len(str1) + 1)]
+    max_length = 0
+    end_position = 0
+    for i in range(1, len(str1) + 1):
+        for j in range(1, len(str2) + 1):
+            if str1[i - 1] == str2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+                if dp[i][j] > max_length:
+                    max_length = dp[i][j]
+                    end_position = i
+            else:
+                dp[i][j] = 0
+    return str1[end_position - max_length: end_position]
