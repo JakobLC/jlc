@@ -19,6 +19,7 @@ from skimage.measure import find_contours
 import matplotlib.lines as mlines
 import jsonlines
 import json
+from pathlib import Path
 
 def is_list_of_lists(l):
     if isinstance(l,list):
@@ -355,7 +356,7 @@ def reverse_dict(dictionary,check_for_duplicates=False):
         inv_dict[v] = k
     return inv_dict
     
-def num_of_params(model,print_numbers=True):
+def num_of_params(model,print_numbers=True,spaces_per_3digits=True):
     """
     Prints and returns the number of paramters for a pytorch model.
     Args:
@@ -372,10 +373,14 @@ def num_of_params(model,print_numbers=True):
     n_not_trainable = sum(p.numel() for p in model.parameters() if not p.requires_grad)
     n_total = n_trainable+n_not_trainable
     if print_numbers:
+        s1,s2,s3 = str(n_trainable),str(n_not_trainable),str(n_total)
+        if spaces_per_3digits:
+            m = lambda x: "{:,.0f}".format(int(x)).replace(","," ")
+            s1,s2,s3 = m(s1),m(s2),m(s3)
         s = ("The model has:"
-            +"\n"+str(n_trainable)+" trainable parameters"
-            +"\n"+str(n_not_trainable)+" untrainable parameters"
-            +"\n"+str(n_total)+" total parameters")
+            +"\n"+s1+" trainable parameters"
+            +"\n"+s2+" untrainable parameters"
+            +"\n"+s3+" total parameters")
         print(s)
     return n_trainable,n_not_trainable,n_total
 
